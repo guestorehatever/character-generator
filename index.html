@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teletext Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* Teletext Display */
+        .teletext-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            border: 3px solid #333;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .teletext-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .teletext-header {
+            background: linear-gradient(to bottom, #003300, #001a00);
+            padding: 8px 12px;
+            border-bottom: 2px solid #00aa00;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 2;
+            position: relative;
+        }
+
+        .page-info {
+            display: flex;
+            gap: 20px;
+        }
+
+        .teletext-content {
+            flex: 1;
+            background: #000;
+            padding: 12px;
+            overflow: auto;
+            position: relative;
+            z-index: 2;
+            font-size: 16px;
+            line-height: 1.5;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .teletext-grid {
+            display: grid;
+            grid-template-columns: repeat(40, 1fr);
+            gap: 0;
+            background: #000;
+            width: fit-content;
+            min-width: 100%;
+        }
+
+        .teletext-cell {
+            width: 20px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid rgba(0, 170, 0, 0.1);
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            user-select: none;
+            transition: all 0.1s;
+            position: relative;
+        }
+
+        .teletext-cell:hover {
+            background: rgba(0, 170, 0, 0.1);
+            border-color: rgba(0, 170, 0, 0.3);
+        }
+
+        .teletext-cell.selected {
+            background: rgba(0, 170, 0, 0.3);
+            border-color: rgba(0, 170, 0, 0.8);
+            box-shadow: 0 0 8px rgba(0, 170, 0, 0.5);
+        }
+
+        /* Control Panel */
+        .control-panel {
+            width: 280px;
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .control-section {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 10px;
+        }
+
+        .control-section h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #00aa00;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+        }
+
+        .control-group {
+            margin-bottom: 8px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 6px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #00aa00;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            border-radius: 2px;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #00aa00;
+            box-shadow: 0 0 8px rgba(0, 170, 0, 0.3);
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 32px;
+            border: 1px solid #333;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+        }
+
+        .color-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border: 2px solid #333;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-btn:hover {
+            border-color: #00aa00;
+            transform: scale(1.05);
+        }
+
+        .color-btn.active {
+            border-color: #00aa00;
+            box-shadow: 0 0 8px rgba(0, 170, 0, 0.5);
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            background: #003300;
+            border: 1px solid #00aa00;
+            color: #00aa00;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #005500;
+            box-shadow: 0 0 10px rgba(0, 170, 0, 0.5);
+        }
+
+        button:active {
+            background: #003300;
+            transform: scale(0.98);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .button-group button {
+            padding: 6px;
+            font-size: 10px;
+        }
+
+        .page-nav {
+            display: flex;
+            gap: 4px;
+        }
+
+        .page-nav button {
+            flex: 1;
+            padding: 6px;
+            font-size: 10px;
+        }
+
+        /* Character palette */
+        .char-palette {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .char-btn {
+            aspect-ratio: 1;
+            padding: 2px;
+            font-size: 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #00aa00;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .char-btn:hover {
+            background: #1a1a1a;
+            border-color: #00aa00;
+        }
+
+        /* Status bar */
+        .status-bar {
+            background: #003300;
+            padding: 6px 10px;
+            font-size: 10px;
+            border-top: 1px solid #00aa00;
+            display: flex;
+            justify-content: space-between;
+            z-index: 2;
+            position: relative;
+        }
+
+        .status-item {
+            display: inline-block;
+            margin-right: 20px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00aa00;
+        }
+
+        /* Modal for fullscreen preview */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #000;
+            border: 3px solid #00aa00;
+            box-shadow: 0 0 30px rgba(0, 170, 0, 0.5);
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #003300;
+            border: 1px solid #00aa00;
+            color: #00aa00;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 12px;
+            z-index: 1001;
+        }
+
+        .modal-close:hover {
+            background: #005500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Teletext Display -->
+        <div class="teletext-display">
+            <div class="teletext-header">
+                <div class="page-info">
+                    <div>PAGE <span id="currentPage">100</span></div>
+                    <div>SUBPAGE <span id="currentSubpage">1</span></div>
+                    <div id="timeDisplay">00:00</div>
+                </div>
+            </div>
+            <div class="teletext-content" id="teletextContent">
+                <div class="teletext-grid" id="teletextGrid"></div>
+            </div>
+            <div class="status-bar">
+                <div class="status-item">TELETEXT EDITOR v1.0</div>
+                <div class="status-item" id="statusText">Ready</div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <!-- Page Management -->
+            <div class="control-section">
+                <h3>📄 Page</h3>
+                <div class="control-group">
+                    <label>Page Number</label>
+                    <input type="number" id="pageNumber" min="100" max="899" value="100">
+                </div>
+                <div class="control-group">
+                    <label>Subpage</label>
+                    <input type="number" id="subpage" min="1" max="99" value="1">
+                </div>
+                <div class="page-nav">
+                    <button onclick="previousPage()">← PREV</button>
+                    <button onclick="nextPage()">NEXT →</button>
+                </div>
+            </div>
+
+            <!-- Text Input -->
+            <div class="control-section">
+                <h3>✎ Text</h3>
+                <div class="control-group">
+                    <label>Insert Character</label>
+                    <input type="text" id="charInput" maxlength="1" placeholder="Type char">
+                </div>
+                <div class="control-group">
+                    <label>Quick Characters</label>
+                    <div class="char-palette" id="charPalette"></div>
+                </div>
+                <button onclick="clearCell()">Clear Cell</button>
+                <button onclick="clearPage()">Clear Page</button>
+            </div>
+
+            <!-- Foreground Color -->
+            <div class="control-section">
+                <h3>🎨 Foreground</h3>
+                <div class="color-palette" id="fgColorPalette"></div>
+                <input type="color" id="customFgColor" value="#00aa00">
+            </div>
+
+            <!-- Background Color -->
+            <div class="control-section">
+                <h3>🖼️ Background</h3>
+                <div class="color-palette" id="bgColorPalette"></div>
+                <input type="color" id="customBgColor" value="#000000">
+            </div>
+
+            <!-- Export -->
+            <div class="control-section">
+                <h3>💾 Export</h3>
+                <button onclick="saveAsHTML()">Save as HTML</button>
+                <button onclick="exportJSON()">Export JSON</button>
+                <button onclick="importJSON()">Import JSON</button>
+            </div>
+
+            <!-- Help -->
+            <div class="control-section">
+                <h3>ℹ️ Info</h3>
+                <div style="font-size: 10px; color: #888; line-height: 1.4;">
+                    <p>Click cells to edit. Use arrow keys to navigate.</p>
+                    <p>Press DEL to clear.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Modal -->
+    <div class="modal" id="previewModal">
+        <div class="modal-content" id="modalContent">
+            <button class="modal-close" onclick="closeModal()">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <script>
+        // Teletext colors (classic palette)
+        const TELETEXT_COLORS = {
+            black: '#000000',
+            red: '#ff0000',
+            green: '#00aa00',
+            yellow: '#ffaa00',
+            blue: '#0000ff',
+            magenta: '#ff00ff',
+            cyan: '#00ffff',
+            white: '#ffffff'
+        };
+
+        const COLOR_NAMES = Object.keys(TELETEXT_COLORS);
+
+        // Grid dimensions
+        const GRID_WIDTH = 40;
+        const GRID_HEIGHT = 24;
+
+        // Current state
+        let pages = {};
+        let currentPage = 100;
+        let currentSubpage = 1;
+        let selectedCell = null;
+        let currentFgColor = '#00aa00';
+        let currentBgColor = '#000000';
+
+        // Initialize
+        function init() {
+            createNewPage(currentPage);
+            renderGrid();
+            setupColorPalettes();
+            setupCharPalette();
+            setupEventListeners();
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        function createNewPage(pageNum) {
+            if (!pages[pageNum]) {
+                pages[pageNum] = {
+                    cells: Array(GRID_WIDTH * GRID_HEIGHT).fill(null).map(() => ({
+                        char: ' ',
+                        fg: '#00aa00',
+                        bg: '#000000'
+                    }))
+                };
+            }
+        }
+
+        function getCurrentPageData() {
+            createNewPage(currentPage);
+            return pages[currentPage];
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('teletextGrid');
+            const pageData = getCurrentPageData();
+            grid.innerHTML = '';
+
+            pageData.cells.forEach((cell, index) => {
+                const cellEl = document.createElement('div');
+                cellEl.className = 'teletext-cell';
+                cellEl.textContent = cell.char;
+                cellEl.style.color = cell.fg;
+                cellEl.style.backgroundColor = cell.bg;
+                cellEl.dataset.index = index;
+                cellEl.onclick = () => selectCell(index);
+                grid.appendChild(cellEl);
+            });
+
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('currentSubpage').textContent = currentSubpage;
+        }
+
+        function selectCell(index) {
+            if (selectedCell !== null) {
+                const prevCell = document.querySelector(`[data-index="${selectedCell}"]`);
+                if (prevCell) prevCell.classList.remove('selected');
+            }
+            selectedCell = index;
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            if (cell) cell.classList.add('selected');
+        }
+
+        function setCellContent(index, char, fg, bg) {
+            const pageData = getCurrentPageData();
+            pageData.cells[index] = {
+                char: char || ' ',
+                fg: fg || currentFgColor,
+                bg: bg || currentBgColor
+            };
+            renderGrid();
+            selectCell(index);
+        }
+
+        function setupColorPalettes() {
+            const fgPalette = document.getElementById('fgColorPalette');
+            const bgPalette = document.getElementById('bgColorPalette');
+
+            COLOR_NAMES.forEach(color => {
+                const btn = document.createElement('button');
+                btn.className = 'color-btn';
+                btn.style.backgroundColor = TELETEXT_COLORS[color];
+                btn.style.color = color === 'black' ? '#00aa00' : '#000000';
+                btn.textContent = color.charAt(0).toUpperCase();
+                btn.onclick = () => setFgColor(TELETEXT_COLORS[color], btn);
+                fgPalette.appendChild(btn);
+
+                const bgBtn = document.createElement('button');
+                bgBtn.className = 'color-btn';
+                bgBtn.style.backgroundColor = TELETEXT_COLORS[color];
+                bgBtn.style.color = color === 'black' ? '#00aa00' : '#000000';
+                bgBtn.textContent = color.charAt(0).toUpperCase();
+                bgBtn.onclick = () => setBgColor(TELETEXT_COLORS[color], bgBtn);
+                bgPalette.appendChild(bgBtn);
+            });
+        }
+
+        function setFgColor(color, btn) {
+            currentFgColor = color;
+            document.querySelectorAll('#fgColorPalette .color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (selectedCell !== null) {
+                const pageData = getCurrentPageData();
+                pageData.cells[selectedCell].fg = color;
+                renderGrid();
+                selectCell(selectedCell);
+            }
+        }
+
+        function setBgColor(color, btn) {
+            currentBgColor = color;
+            document.querySelectorAll('#bgColorPalette .color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (selectedCell !== null) {
+                const pageData = getCurrentPageData();
+                pageData.cells[selectedCell].bg = color;
+                renderGrid();
+                selectCell(selectedCell);
+            }
+        }
+
+        function setupCharPalette() {
+            const palette = document.getElementById('charPalette');
+            const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()[]{}+-=/*.,;:?';
+            chars.split('').forEach(char => {
+                const btn = document.createElement('button');
+                btn.className = 'char-btn';
+                btn.textContent = char;
+                btn.onclick = () => insertChar(char);
+                palette.appendChild(btn);
+            });
+        }
+
+        function insertChar(char) {
+            if (selectedCell !== null) {
+                setCellContent(selectedCell, char, currentFgColor, currentBgColor);
+                // Move to next cell
+                if (selectedCell < GRID_WIDTH * GRID_HEIGHT - 1) {
+                    selectCell(selectedCell + 1);
+                }
+            }
+        }
+
+        function clearCell() {
+            if (selectedCell !== null) {
+                setCellContent(selectedCell, ' ', currentFgColor, currentBgColor);
+            }
+        }
+
+        function clearPage() {
+            if (confirm('Clear entire page?')) {
+                const pageData = getCurrentPageData();
+                pageData.cells = Array(GRID_WIDTH * GRID_HEIGHT).fill(null).map(() => ({
+                    char: ' ',
+                    fg: '#00aa00',
+                    bg: '#000000'
+                }));
+                renderGrid();
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('charInput').addEventListener('keypress', (e) => {
+                if (e.key.length === 1) {
+                    insertChar(e.key.toUpperCase());
+                    e.target.value = '';
+                }
+            });
+
+            document.getElementById('pageNumber').addEventListener('change', (e) => {
+                currentPage = parseInt(e.target.value);
+                renderGrid();
+            });
+
+            document.getElementById('subpage').addEventListener('change', (e) => {
+                currentSubpage = parseInt(e.target.value);
+                renderGrid();
+            });
+
+            document.getElementById('customFgColor').addEventListener('change', (e) => {
+                currentFgColor = e.target.value;
+            });
+
+            document.getElementById('customBgColor').addEventListener('change', (e) => {
+                currentBgColor = e.target.value;
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (selectedCell === null) return;
+                
+                const row = Math.floor(selectedCell / GRID_WIDTH);
+                const col = selectedCell % GRID_WIDTH;
+                let newIndex = selectedCell;
+
+                if (e.key === 'ArrowUp' && row > 0) newIndex -= GRID_WIDTH;
+                else if (e.key === 'ArrowDown' && row < GRID_HEIGHT - 1) newIndex += GRID_WIDTH;
+                else if (e.key === 'ArrowLeft' && col > 0) newIndex -= 1;
+                else if (e.key === 'ArrowRight' && col < GRID_WIDTH - 1) newIndex += 1;
+                else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    clearCell();
+                    return;
+                }
+
+                if (newIndex !== selectedCell) {
+                    selectCell(newIndex);
+                    e.preventDefault();
+                }
+            });
+
+            document.getElementById('fileInput').addEventListener('change', handleFileImport);
+        }
+
+        function previousPage() {
+            if (currentPage > 100) {
+                currentPage--;
+                document.getElementById('pageNumber').value = currentPage;
+                renderGrid();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < 899) {
+                currentPage++;
+                document.getElementById('pageNumber').value = currentPage;
+                renderGrid();
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('timeDisplay').textContent = `${hours}:${minutes}`;
+        }
+
+        function saveAsHTML() {
+            const pageData = getCurrentPageData();
+            let htmlContent = '';
+
+            pageData.cells.forEach((cell, index) => {
+                if (index > 0 && index % GRID_WIDTH === 0) {
+                    htmlContent += '<br>';
+                }
+                htmlContent += `<span style="color: ${cell.fg}; background-color: ${cell.bg};">${escapeHtml(cell.char)}</span>`;
+            });
+
+            const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teletext Page ${currentPage}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #00aa00;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .teletext-container {
+            background: #000;
+            border: 3px solid #00aa00;
+            box-shadow: 0 0 30px rgba(0, 170, 0, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+            letter-spacing: 2px;
+            width: fit-content;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+        }
+        
+        .teletext-container::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .teletext-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        span {
+            display: inline-block;
+            min-width: 1em;
+            text-align: center;
+        }
+        
+        br {
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="teletext-container">
+        <div class="teletext-content">
+            ${htmlContent}
+        </div>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `teletext-page-${currentPage}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            updateStatus(`Saved as teletext-page-${currentPage}.html`);
+        }
+
+        function exportJSON() {
+            const data = JSON.stringify(pages, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'teletext-pages.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            updateStatus('Exported JSON');
+        }
+
+        function importJSON() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    pages = data;
+                    renderGrid();
+                    updateStatus('Imported JSON');
+                } catch (error) {
+                    alert('Invalid JSON file');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function updateStatus(text) {
+            document.getElementById('statusText').textContent = text;
+            setTimeout(() => {
+                document.getElementById('statusText').textContent = 'Ready';
+            }, 3000);
+        }
+
+        function closeModal() {
+            document.getElementById('previewModal').classList.remove('active');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
