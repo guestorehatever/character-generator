@@ -66,6 +66,7 @@
             align-items: center;
             z-index: 2;
             position: relative;
+            flex-shrink: 0;
         }
 
         .page-info {
@@ -76,40 +77,42 @@
         .teletext-content {
             flex: 1;
             background: #000;
-            padding: 12px;
-            overflow: auto;
+            padding: 0;
+            overflow: hidden;
             position: relative;
             z-index: 2;
-            font-size: 16px;
-            line-height: 1.5;
-            font-family: 'Courier New', monospace;
-            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .teletext-grid {
             display: grid;
             grid-template-columns: repeat(40, 1fr);
+            grid-template-rows: repeat(24, 1fr);
             gap: 0;
             background: #000;
-            width: fit-content;
-            min-width: 100%;
+            width: 100%;
+            height: 100%;
+            aspect-ratio: 40 / 24;
             user-select: none;
         }
 
         .teletext-cell {
-            width: 20px;
-            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             border: 1px solid rgba(0, 170, 0, 0.1);
-            font-size: 14px;
+            font-size: clamp(8px, 2vw, 20px);
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 0.1em;
             user-select: none;
             transition: all 0.1s;
             position: relative;
+            aspect-ratio: 1;
+            min-width: 0;
+            min-height: 0;
         }
 
         .teletext-cell:hover {
@@ -313,6 +316,7 @@
             justify-content: space-between;
             z-index: 2;
             position: relative;
+            flex-shrink: 0;
         }
 
         .status-item {
@@ -354,6 +358,27 @@
             background: #005500;
             box-shadow: 0 0 8px rgba(0, 170, 0, 0.5);
         }
+
+        .autoplay-indicator {
+            background: #005500;
+            border: 1px solid #00aa00;
+            padding: 6px;
+            border-radius: 2px;
+            font-size: 10px;
+            text-align: center;
+            color: #00aa00;
+            margin-bottom: 8px;
+        }
+
+        .autoplay-indicator.active {
+            box-shadow: 0 0 12px rgba(0, 170, 0, 0.8);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 12px rgba(0, 170, 0, 0.8); }
+            50% { box-shadow: 0 0 6px rgba(0, 170, 0, 0.4); }
+        }
     </style>
 </head>
 <body>
@@ -371,13 +396,25 @@
                 <div class="teletext-grid" id="teletextGrid"></div>
             </div>
             <div class="status-bar">
-                <div class="status-item">TELETEXT EDITOR v2.1</div>
+                <div class="status-item">TELETEXT EDITOR v2.2</div>
                 <div class="status-item" id="statusText">Ready</div>
             </div>
         </div>
 
         <!-- Control Panel -->
         <div class="control-panel">
+            <!-- Autoplay -->
+            <div class="control-section">
+                <h3>⏱️ Autoplay</h3>
+                <div class="autoplay-indicator" id="autoplayIndicator">
+                    AUTOPLAY: OFF
+                </div>
+                <button onclick="toggleAutoplay()">Start Autoplay</button>
+                <div class="control-group">
+                    <label>Next in: <span id="countdownDisplay">--</span>s</label>
+                </div>
+            </div>
+
             <!-- Tool Mode -->
             <div class="control-section">
                 <h3>🎯 Tool Mode</h3>
@@ -444,6 +481,7 @@
             <div class="control-section">
                 <h3>ℹ️ Info</h3>
                 <div style="font-size: 10px; color: #888; line-height: 1.4;">
+                    <p><strong>Grid:</strong> 40×24 fixed</p>
                     <p><strong>Edit Mode:</strong> Click to edit cells</p>
                     <p><strong>Square Tool:</strong> Drag to fill square areas</p>
                     <p><strong>Section Tool:</strong> Drag to fill full-width sections</p>
@@ -473,6 +511,7 @@
         // Grid dimensions
         const GRID_WIDTH = 40;
         const GRID_HEIGHT = 24;
+        const AUTOPLAY_INTERVAL = 10000; // 10 seconds
 
         // Current state
         let pages = {};
@@ -485,6 +524,10 @@
         let isDrawing = false;
         let dragStart = null;
         let dragEnd = null;
+        let autoplayEnabled = false;
+        let autoplayTimer = null;
+        let countdownTimer = null;
+        let countdownValue = 0;
 
         // Initialize
         function init() {
@@ -755,6 +798,48 @@
                 }));
                 renderGrid();
             }
+        }
+
+        function toggleAutoplay() {
+            autoplayEnabled = !autoplayEnabled;
+            const indicator = document.getElementById('autoplayIndicator');
+            const btn = event.target;
+
+            if (autoplayEnabled) {
+                indicator.classList.add('active');
+                indicator.textContent = 'AUTOPLAY: ON';
+                btn.textContent = 'Stop Autoplay';
+                startAutoplay();
+            } else {
+                indicator.classList.remove('active');
+                indicator.textContent = 'AUTOPLAY: OFF';
+                btn.textContent = 'Start Autoplay';
+                stopAutoplay();
+            }
+        }
+
+        function startAutoplay() {
+            countdownValue = AUTOPLAY_INTERVAL / 1000;
+            updateCountdown();
+
+            autoplayTimer = setInterval(() => {
+                nextPage();
+                countdownValue = AUTOPLAY_INTERVAL / 1000;
+                updateCountdown();
+            }, AUTOPLAY_INTERVAL);
+
+            countdownTimer = setInterval(updateCountdown, 1000);
+        }
+
+        function stopAutoplay() {
+            if (autoplayTimer) clearInterval(autoplayTimer);
+            if (countdownTimer) clearInterval(countdownTimer);
+            document.getElementById('countdownDisplay').textContent = '--';
+        }
+
+        function updateCountdown() {
+            document.getElementById('countdownDisplay').textContent = countdownValue;
+            countdownValue--;
         }
 
         function setupEventListeners() {
