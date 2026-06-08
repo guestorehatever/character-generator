@@ -89,13 +89,13 @@
 
         .teletext-grid {
             display: grid;
-            grid-template-columns: repeat(40, 1fr);
-            grid-template-rows: repeat(24, 1fr);
+            grid-template-columns: repeat(24, 1fr);
+            grid-template-rows: repeat(40, 1fr);
             gap: 0;
             background: #000;
             width: 100%;
             max-height: 100%;
-            aspect-ratio: 40 / 24;
+            aspect-ratio: 24 / 40;
             user-select: none;
             border-collapse: collapse;
         }
@@ -513,8 +513,8 @@
         const COLOR_NAMES = Object.keys(TELETEXT_COLORS);
 
         // Grid dimensions
-        const GRID_WIDTH = 40;
-        const GRID_HEIGHT = 24;
+        const GRID_WIDTH = 24;
+        const GRID_HEIGHT = 40;
         const AUTOPLAY_INTERVAL = 10000; // 10 seconds
 
         // Current state
@@ -928,7 +928,7 @@
                 if (index > 0 && index % GRID_WIDTH === 0) {
                     htmlContent += '<br>';
                 }
-                htmlContent += `<span style="color: ${cell.fg}; background-color: ${cell.bg};">${escapeHtml(cell.char)}</span>`;
+                htmlContent += `<span style="color: ${cell.fg}; background-color: ${cell.bg}; border: none;">${escapeHtml(cell.char)}</span>`;
             });
 
             const html = `<!DOCTYPE html>
@@ -996,6 +996,7 @@
             display: inline-block;
             min-width: 1em;
             text-align: center;
+            border: none;
         }
         
         br {
